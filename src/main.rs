@@ -39,6 +39,7 @@ async fn main() {
         .route("/bulb", post(add_bulb))
         .route("/bulb/on/:id", get(turn_on_bulb))
         .route("/bulb/off/*id", get(turn_off_bulb))
+        .route("/bulb/:name", get(get_bulb_by_name))
         .with_state(Arc::clone(&registry));
 
     // run our app with hyper, listening globally on port 3000
@@ -59,6 +60,13 @@ async fn turn_on_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path
         Ok(status) => format!("Turn On Function Status for id: {} - {}", id, status),
         Err(e) => e.to_string()
     }
+}
+
+
+#[debug_handler]
+async fn get_bulb_by_name(State(state): State<Arc<RwLock<Registry>>>, Path(name): Path<String>) -> String {
+    let registry = state.read().await;
+    serde_json::to_string(&registry.find_bulb_by_name(name).unwrap()).unwrap()
 }
 
 
