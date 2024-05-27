@@ -38,7 +38,7 @@ async fn main() {
         .route("/", get(|| async { "Hello, World!" }))
         .route("/bulb", post(add_bulb))
         .route("/bulb/on/:id", get(turn_on_bulb))
-        .route("/bulb/off/*id", get(turn_off_bulb))
+        .route("/bulb/off/:id", get(turn_off_bulb))
         .route("/bulb/:name", get(get_bulb_by_name))
         .with_state(Arc::clone(&registry));
 
@@ -49,7 +49,7 @@ async fn main() {
 
 
 async fn turn_on_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path<String>) -> String {
-    let registry = state.read().await;
+    let mut registry = state.write().await;
 
     let id = match id.parse::<i32>() {
         Ok(i) => Id::from(i),
@@ -72,7 +72,7 @@ async fn get_bulb_by_name(State(state): State<Arc<RwLock<Registry>>>, Path(name)
 
 #[debug_handler]
 async fn turn_off_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path<String>) -> String {
-    let registry = state.read().await;
+    let mut registry = state.write().await;
     let id = match id.parse::<i32>() {
         Ok(i) => Id::from(i),
         _ => Id::from(id)
