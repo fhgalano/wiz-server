@@ -8,6 +8,7 @@ use axum::{
     Router,
     extract::{State, Path},
 };
+use logging_timer::stime;
 use surrealdb::sql::Id;
 use tokio::sync::RwLock;
 use tokio::task::block_in_place;
@@ -18,18 +19,22 @@ use wiz_bulb::bulb::Bulb;
 use wiz_bulb::registry::Registry;
 use wiz_bulb::registry::connect_to_db;
 
+use env_logger::Builder;
+use log::{info};
 
 #[tokio::main]
 async fn main() {
+    configure_logging();
+
     let registry = Arc::new(RwLock::new(
         Registry::new_from_url(Url::parse("ws://localhost:8000").unwrap()).await
     ));
 
     let c = registry.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(time::Duration::from_secs(5));
+        let mut interval = tokio::time::interval(time::Duration::from_secs(45));
         loop {
-            dbg!("DeezNuts");
+            info!("NewCycle");
             interval.tick().await;
         }
     });
@@ -47,7 +52,18 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
+fn configure_logging() {
+    let mut builder = Builder::new();
 
+    builder
+        .filter(None, log::LevelFilter::Info)
+        .target(env_logger::Target::Stdout)
+        .init();
+}
+
+
+#[stime("info")]
+#[debug_handler]
 async fn turn_on_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path<String>) -> String {
     let mut registry = state.write().await;
 
@@ -63,6 +79,7 @@ async fn turn_on_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path
 }
 
 
+#[stime]
 #[debug_handler]
 async fn get_bulb_by_name(State(state): State<Arc<RwLock<Registry>>>, Path(name): Path<String>) -> String {
     let registry = state.read().await;
@@ -70,6 +87,7 @@ async fn get_bulb_by_name(State(state): State<Arc<RwLock<Registry>>>, Path(name)
 }
 
 
+#[stime("info")]
 #[debug_handler]
 async fn turn_off_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Path<String>) -> String {
     let mut registry = state.write().await;
@@ -83,7 +101,7 @@ async fn turn_off_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Pat
     }
 }
 
-
+#[stime]
 #[debug_handler]
 async fn add_bulb(State(state): State<Arc<RwLock<Registry>>>) -> String {
     let mut registry = state.write().await;
