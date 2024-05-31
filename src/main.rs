@@ -45,6 +45,7 @@ async fn main() {
         .route("/bulb/on/:id", get(turn_on_bulb))
         .route("/bulb/off/:id", get(turn_off_bulb))
         .route("/bulb/:name", get(get_bulb_by_name))
+        .route("/bulb/discover", get(discover_unknown_bulbs))
         .with_state(Arc::clone(&registry));
 
     // run our app with hyper, listening globally on port 3000
@@ -119,3 +120,12 @@ async fn add_bulb(State(state): State<Arc<RwLock<Registry>>>) -> String {
     });
     "added bulb".to_string()
 }
+
+#[stime]
+#[debug_handler]
+async fn discover_unknown_bulbs(State(state): State<Arc<RwLock<Registry>>>) -> String {
+    let registry = state.read().await;
+
+    serde_json::to_string(&registry.discover_unknown_bulbs()).unwrap()
+}
+
