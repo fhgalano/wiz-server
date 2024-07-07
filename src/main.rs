@@ -6,7 +6,7 @@ use axum::{
     debug_handler,
     routing::{get, post},
     Router,
-    extract::{State, Path},
+    extract::{State, Path, Json},
 };
 use logging_timer::stime;
 use surrealdb::sql::Id;
@@ -16,6 +16,7 @@ use tokio::runtime::Handle;
 use url::Url;
 
 use wiz_bulb::bulb::Bulb;
+use wiz_bulb::bulb::{On, Off};
 use wiz_bulb::registry::Registry;
 use wiz_bulb::registry::connect_to_db;
 
@@ -42,6 +43,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/bulb", post(add_bulb))
+        .route("/bulb/test", post(toggle_bulb))
         .route("/bulb/on/:id", get(turn_on_bulb))
         .route("/bulb/off/:id", get(turn_off_bulb))
         .route("/bulb/:name", get(get_bulb_by_name))
@@ -104,21 +106,27 @@ async fn turn_off_bulb(State(state): State<Arc<RwLock<Registry>>>, Path(id): Pat
 
 #[stime]
 #[debug_handler]
-async fn add_bulb(State(state): State<Arc<RwLock<Registry>>>) -> String {
+async fn add_bulb(State(state): State<Arc<RwLock<Registry>>>, Json(bulb): Json<Bulb>) -> String {
     let mut registry = state.write().await;
 
-    let bulb = Bulb::new(
-        IpAddr::V4(Ipv4Addr::new(192, 168, 68, 58)),
-        format!("test_bulb_{}", 2),
-        2,
-    );
-
     block_in_place(move || {
-        let _ = Handle::current().block_on(
-            registry.add(Box::new(bulb))
-        );
+        Handle::current().block_on(async move {
+                registry.add(Box::new(bulb)).await.unwrap();
+        });
     });
     "added bulb".to_string()
+}
+
+#[stime]
+#[debug_handler]
+async fn toggle_bulb(Json(mut bulb): Json<Bulb>) -> String {
+    match bulb.get_state() {
+        Ok(true) => {bulb.off();},
+        Ok(false) => {bulb.on();},
+        Err(e) => println!("failed to toggle the bulb, you'll have to guess: {e:?}")
+    };
+
+    "flipped bulb".to_string()
 }
 
 #[stime]
